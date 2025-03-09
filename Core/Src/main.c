@@ -20,6 +20,8 @@
 #include "main.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -41,7 +43,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
+// Global flag to indicate if UART transmission is complete.
+volatile bool uartTxComplete = true;
+volatile bool uartRxComplete = false;
 I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
@@ -64,6 +68,16 @@ static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == huart2.Instance){
+		uartTxComplete = true;
+	}
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == huart2.Instance){
+		uartRxComplete = true;
+	}
+}
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -79,7 +93,9 @@ static void MX_USART2_UART_Init(void);
   */
 int main(void)
 {
-
+	const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\n";
+	const char* time_menu = "Setting time/alarm (H1H2:M1M2)\r\n";
+	const char* tones_menu = "Available tones\r\n 1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone";
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -106,46 +122,58 @@ int main(void)
   MX_RTC_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  HAL_Delay(100);
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
-
+  uint8_t rx_buff[1];
+  uint8_t *receiver;
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //uint8_t receive[34];
 
-  TransmitData(&huart2, (const uint8_t*) "Welcome to Alarm Clock Setup\r\n");
-  uint8_t rx_buff[1];
-  while (1)
-   {
-	  uint8_t* receiver = ReceiveData(&huart2, rx_buff);
-	  TransmitDataByte(&huart2, receiver);
-   }
-  /* USER CODE END 3 */
+  TransmitData(&huart2, (const uint8_t*) main_menu);
+
+  while (1){
+	  if (uartTxComplete){//ready to transmit/receive
+		  if (!uartRxComplete){//waits for user input
+			  receiver = ReceiveData(&huart2, rx_buff);
+		  } else{ //processes received byte
+			  if (*receiver == 's'){
+			  	TransmitData(&huart2, (const uint8_t*) time_menu);
+			  }else if(*receiver == 'a'){
+			  	TransmitData(&huart2, (const uint8_t*) time_menu);
+			  }else if(*receiver == 't'){
+			  	TransmitData(&huart2, (const uint8_t*) tones_menu);
+			  } //add option for invalid input besides (NULL)
+			  uartRxComplete = false;
+		  }
+	  }
+  }
+
+
 }
 
 void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
-	uint16_t dataSize = strlen((const char*)pData);
-
-	while (HAL_UART_GetState(huart) != HAL_UART_STATE_READY); //wait for previous transmissions to complete
-
-	HAL_UART_Transmit_IT(huart, pData, dataSize);
-}
+	if (uartTxComplete){
+		uartTxComplete = false;
+		uint16_t dataSize = strlen((const char*)pData);
+		HAL_UART_Transmit_IT(huart, pData, dataSize);
+		}
+	}
 
 void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
-	while (HAL_UART_GetState(huart) != HAL_UART_STATE_READY); //wait for previous transmissions to complete
+	if (uartTxComplete){
+		uartTxComplete = false;
+		HAL_UART_Transmit_IT(huart, pData, 1);
+		}
+	}
 
-	HAL_UART_Transmit_IT(huart, pData, 1);
-}
 
 uint8_t* ReceiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff){
-	if(HAL_UART_Receive_IT(huart, receiveBuff, 1)==HAL_OK) {
-		return receiveBuff;
-	}
-	else {
-		HAL_UART_Transmit_IT(huart, (const uint8_t*) "Failed to receive data\r\n", strlen("Failed to receive data\r\n"));
-		return (uint8_t*) -1;
-	}
+	if(HAL_UART_Receive_IT(huart, receiveBuff, 1)!=HAL_OK) {
+	}//empty because if message is sent it blocks usart from receiving data in an infinite loop
+
+	return receiveBuff;
 }
 
 /**
