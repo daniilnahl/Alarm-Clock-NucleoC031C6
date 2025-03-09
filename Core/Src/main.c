@@ -57,6 +57,8 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData);
+void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData);
+uint8_t* ReceiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
@@ -113,19 +115,11 @@ int main(void)
   //uint8_t receive[34];
 
   TransmitData(&huart2, (const uint8_t*) "Welcome to Alarm Clock Setup\r\n");
-
+  uint8_t rx_buff[1];
   while (1)
    {
-//	  if(HAL_UART_Receive_IT(&huart2, rx_buff, sizeof(rx_buff))==HAL_OK) //if transfer is successful
-//	    {
-//	      __NOP(); //You need to toggle a breakpoint on this line!
-//	    } else {
-//	      __NOP();
-//	    }
-//
-//	  if (rx_buff[0] == '1'){
-//		  HAL_UART_Transmit_IT(&huart2, (const uint8_t*) "Welcome to SIGMA", strlen("Welcome to SIGMA"));
-//	  }
+	  uint8_t* receiver = ReceiveData(&huart2, rx_buff);
+	  TransmitDataByte(&huart2, receiver);
    }
   /* USER CODE END 3 */
 }
@@ -138,7 +132,20 @@ void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
 	HAL_UART_Transmit_IT(huart, pData, dataSize);
 }
 
-void ReceiveData(UART_HandleTypeDef *huart, const uint8_t *pData){
+void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
+	while (HAL_UART_GetState(huart) != HAL_UART_STATE_READY); //wait for previous transmissions to complete
+
+	HAL_UART_Transmit_IT(huart, pData, 1);
+}
+
+uint8_t* ReceiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff){
+	if(HAL_UART_Receive_IT(huart, receiveBuff, 1)==HAL_OK) {
+		return receiveBuff;
+	}
+	else {
+		HAL_UART_Transmit_IT(huart, (const uint8_t*) "Failed to receive data\r\n", strlen("Failed to receive data\r\n"));
+		return (uint8_t*) -1;
+	}
 }
 
 /**
