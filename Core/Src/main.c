@@ -20,8 +20,6 @@
 #include "main.h"
 #include <string.h>
 #include <stdio.h>
-#define TIMEOUT 100
-char input_buff[16];
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -58,6 +56,7 @@ UART_HandleTypeDef huart2;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
@@ -111,13 +110,35 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  char welcome_msg[] = "Welcome to Alarm Clock Setup\r\n";
-  HAL_UART_Transmit(&huart2, (const uint8_t*) "Welcome to Alarm Clock Setup\r\n", 34, TIMEOUT);
+  //uint8_t receive[34];
+
+  TransmitData(&huart2, (const uint8_t*) "Welcome to Alarm Clock Setup\r\n");
 
   while (1)
    {
+//	  if(HAL_UART_Receive_IT(&huart2, rx_buff, sizeof(rx_buff))==HAL_OK) //if transfer is successful
+//	    {
+//	      __NOP(); //You need to toggle a breakpoint on this line!
+//	    } else {
+//	      __NOP();
+//	    }
+//
+//	  if (rx_buff[0] == '1'){
+//		  HAL_UART_Transmit_IT(&huart2, (const uint8_t*) "Welcome to SIGMA", strlen("Welcome to SIGMA"));
+//	  }
    }
   /* USER CODE END 3 */
+}
+
+void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
+	uint16_t dataSize = strlen((const char*)pData);
+
+	while (HAL_UART_GetState(huart) != HAL_UART_STATE_READY); //wait for previous transmissions to complete
+
+	HAL_UART_Transmit_IT(huart, pData, dataSize);
+}
+
+void ReceiveData(UART_HandleTypeDef *huart, const uint8_t *pData){
 }
 
 /**
