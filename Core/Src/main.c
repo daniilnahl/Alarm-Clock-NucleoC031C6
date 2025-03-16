@@ -43,9 +43,15 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-// Global flag to indicate if UART transmission is complete.
+//global flags to indicate if uart transmission is complete
 volatile bool uartTxComplete = true;
 volatile bool uartRxComplete = false;
+volatile bool commandComplete = true;
+
+const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
+const char* time_menu = "Setting time/alarm (H1H2:M1M2)\r\n";
+const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone\r\n";
+const char* receive_err = "Failed to process input. Try again.\r\n";
 I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
@@ -93,9 +99,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
   */
 int main(void)
 {
-	const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\n";
-	const char* time_menu = "Setting time/alarm (H1H2:M1M2)\r\n";
-	const char* tones_menu = "Available tones\r\n 1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone";
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -127,29 +131,67 @@ int main(void)
 
   /* USER CODE END 2 */
   uint8_t rx_buff[1];
-  uint8_t *receiver;
+  HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
   TransmitData(&huart2, (const uint8_t*) main_menu);
 
   while (1){
-	  if (uartTxComplete){//ready to transmit/receive
-		  if (!uartRxComplete){//waits for user input
-			  receiver = ReceiveData(&huart2, rx_buff);
-		  } else{ //processes received byte
-			  if (*receiver == 's'){
-			  	TransmitData(&huart2, (const uint8_t*) time_menu);
-			  }else if(*receiver == 'a'){
-			  	TransmitData(&huart2, (const uint8_t*) time_menu);
-			  }else if(*receiver == 't'){
-			  	TransmitData(&huart2, (const uint8_t*) tones_menu);
-			  } //add option for invalid input besides (NULL)
-			  uartRxComplete = false;
-		  }
-	  }
-  }
+	  if (uartTxComplete && uartRxComplete && commandComplete){//ready to transmit
+		if (rx_buff[0] == 's'){
+			TransmitData(&huart2, (const uint8_t*) time_menu);
 
+			uartRxComplete = false;
+			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+
+			//loop to get the 4 digit time - do a split of two entries: one for hours 'hh' and one for minutes 'mm'
+
+		}else if(rx_buff[0] == 'a'){
+			TransmitData(&huart2, (const uint8_t*) time_menu);
+
+			uartRxComplete = false;
+			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+
+			//loop to get the 4 digit time - do a split of two entries: one for hours 'hh' and one for minutes 'mm'
+
+		}else if(rx_buff[0] == 't'){
+			TransmitData(&huart2, (const uint8_t*) tones_menu);
+			commandComplete = false;
+
+			while (!commandComplete){
+				uartRxComplete = false;
+				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+
+				if(rx_buff[0] == '1'){
+					//code for setting the tone
+					//make a function that would return true and assign that value to commandComplete
+
+					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to sigma grindset.\r\n");
+					commandComplete = true;
+				}else if(rx_buff[0] == '2'){
+					//code for setting the tone
+
+					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to heavy metal.\r\n");
+					commandComplete = true;
+				}else if(rx_buff[0] == '3'){
+					//code for setting the tone
+
+					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to calm tone.\r\n");
+					commandComplete = true;
+				}
+			}
+		}
+
+
+
+		//resets flag and restart reception
+		uartRxComplete = false;
+        HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+        TransmitData(&huart2, (const uint8_t*) main_menu);
+		}
+
+	  }
 
 }
 
@@ -167,14 +209,6 @@ void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
 		HAL_UART_Transmit_IT(huart, pData, 1);
 		}
 	}
-
-
-uint8_t* ReceiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff){
-	if(HAL_UART_Receive_IT(huart, receiveBuff, 1)!=HAL_OK) {
-	}//empty because if message is sent it blocks usart from receiving data in an infinite loop
-
-	return receiveBuff;
-}
 
 /**
   * @brief System Clock Configuration
