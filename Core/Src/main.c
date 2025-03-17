@@ -31,7 +31,7 @@
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
-
+#define TIME_BUFF_SIZE 4
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
@@ -49,7 +49,7 @@ volatile bool uartRxComplete = false;
 volatile bool commandComplete = true;
 
 const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
-const char* time_menu = "Setting time/alarm (H1H2:M1M2)\r\n";
+const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
 const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone\r\n";
 const char* receive_err = "Failed to process input. Try again.\r\n";
 I2C_HandleTypeDef hi2c1;
@@ -130,6 +130,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
+  int time_index = 0;
+  uint8_t time_command[1];
+  uint8_t time_buff[TIME_BUFF_SIZE];
   uint8_t rx_buff[1];
   HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
@@ -139,21 +142,39 @@ int main(void)
 
   while (1){
 	  if (uartTxComplete && uartRxComplete && commandComplete){//ready to transmit
-		if (rx_buff[0] == 's'){
+		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
+			time_command[0] = rx_buff[0];
+
 			TransmitData(&huart2, (const uint8_t*) time_menu);
 
+			commandComplete = false;
+			time_index = 0;
 			uartRxComplete = false;
+
 			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
-			//loop to get the 4 digit time - do a split of two entries: one for hours 'hh' and one for minutes 'mm'
+			while (time_index < TIME_BUFF_SIZE){
+				if (uartRxComplete){
+					uartRxComplete = false;
 
-		}else if(rx_buff[0] == 'a'){
-			TransmitData(&huart2, (const uint8_t*) time_menu);
 
-			uartRxComplete = false;
-			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+				if (rx_buff[0] >= '0' && rx_buff[0] <= '9'){
+					time_buff[time_index] = rx_buff[0];
+					time_index++;
 
-			//loop to get the 4 digit time - do a split of two entries: one for hours 'hh' and one for minutes 'mm'
+					if (time_index == TIME_BUFF_SIZE){
+						break;
+						}
+					}
+				}
+
+				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+			}
+
+			commandComplete = true;
+
+			if (time_command[0] =='s'){ TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");}
+			else { TransmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");}
 
 		}else if(rx_buff[0] == 't'){
 			TransmitData(&huart2, (const uint8_t*) tones_menu);
