@@ -155,6 +155,8 @@ int main(void)
   uint8_t time_command[1];
   uint8_t time_buff[TIME_BUFF_SIZE];
   uint8_t rx_buff[1];
+
+  uint32_t timestamp1 = 0, timestamp2 = 0;
   HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
   /* Infinite loop */
@@ -162,8 +164,13 @@ int main(void)
   TransmitData(&huart2, (const uint8_t*) main_menu);
   //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
   while (1){
-	  DisplayTime();
-	  HAL_Delay(10);
+	  timestamp1 = HAL_GetTick();
+
+	   if (timestamp1 - timestamp2 >= 500){
+		   DisplayTime();
+		   timestamp2 = timestamp1;
+	   	}
+
 	  if (uartTxComplete && uartRxComplete && commandComplete){//ready to transmit
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
