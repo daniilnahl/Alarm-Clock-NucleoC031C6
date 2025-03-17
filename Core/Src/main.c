@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "liquidcrystal_i2c.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -84,6 +85,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		uartRxComplete = true;
 	}
 }
+void DisplayTime(){
+	RTC_DateTypeDef Date;
+	RTC_TimeTypeDef Time;
+	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
+
+
+	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
+	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN); //also needs this to unlock shadow registers
+
+    //Format: HH:MM:SS (constructs a "string" into the buffer)
+    snprintf(ds_time_buffer, sizeof(ds_time_buffer), "%02d:%02d:%02d", Time.Hours, Time.Minutes, Time.Seconds);
+    //Format: year:month:day (constructs a "string" into the buffer)
+
+
+    HD44780_Clear();
+    HD44780_SetCursor(0, 0);
+    HD44780_PrintStr("Time:   ");
+    HD44780_PrintStr(ds_time_buffer);
+}
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -126,6 +146,7 @@ int main(void)
   MX_RTC_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  HD44780_Init(2);
   HAL_Delay(100);
   /* USER CODE BEGIN 2 */
 
@@ -139,8 +160,10 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   TransmitData(&huart2, (const uint8_t*) main_menu);
-
+  //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
   while (1){
+	  DisplayTime();
+	  HAL_Delay(10);
 	  if (uartTxComplete && uartRxComplete && commandComplete){//ready to transmit
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
