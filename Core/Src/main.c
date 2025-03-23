@@ -33,6 +33,7 @@
 
 /* USER CODE END PTD */
 #define TIME_BUFF_SIZE 4
+#define TIMEOUT 500
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
@@ -56,7 +57,8 @@ const char* receive_err = "Failed to process input. Try again.\r\n";
 I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
-
+RTC_DateTypeDef Date;
+RTC_TimeTypeDef Time;
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -85,11 +87,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		uartRxComplete = true;
 	}
 }
-void DisplayTime(){
-	RTC_DateTypeDef Date;
-	RTC_TimeTypeDef Time;
-	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
+void SetAlarm(void){}
+void SetTime(uint8_t *time_buff){
+	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
+	Time.Hours = time_buff[0] * 10 + time_buff[1];
+	Time.Minutes = time_buff[2] * 10 + time_buff[3];
+
+	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN); //figure what format to set time
+
+}
+void DisplayTime(void){
+	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
 
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
 	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN); //also needs this to unlock shadow registers
@@ -163,10 +173,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   TransmitData(&huart2, (const uint8_t*) main_menu);
   //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
+  //NOTE TO SELF: implement proper time handling. Eg x1 cant be greater than 2 another example then x2 cant be greater than 3 since there is no 24:00 just 23:59.
   while (1){
+
 	  timestamp1 = HAL_GetTick();
 
-	   if (timestamp1 - timestamp2 >= 500){
+	   if (timestamp1 - timestamp2 >= TIMEOUT){
 		   DisplayTime();
 		   timestamp2 = timestamp1;
 	   	}
@@ -189,8 +201,42 @@ int main(void)
 
 
 				if (rx_buff[0] >= '0' && rx_buff[0] <= '9'){
-					time_buff[time_index] = rx_buff[0];
-					time_index++;
+					if (time_index == 0){ //first value can only be from 0 to 2
+						if (rx_buff[0] >= '0' && rx_buff[0] <= '2'){
+								time_buff[time_index] = rx_buff[0];
+								time_index++;
+						}else{
+							TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 2!\r\n");
+						}
+					}
+
+					else if (time_index == 1){
+						if (time_buff[0] == '0' || time_buff[0] == '1'){//if at index 0 values is 1 or 0 then value at index 1 can be from 0 to 9
+							time_buff[time_index] = rx_buff[0];
+							time_index++;
+						}else{
+							if (rx_buff[0] >= '0' && rx_buff[0] <= '3'){
+									time_buff[time_index] = rx_buff[0];
+									time_index++;
+							}else{
+								TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 3!\r\n");
+							}
+						}
+					}
+
+					else if(time_index == 2){//if at index 0 value is 2  then value at index 1 can be from 0 to 3
+						if (rx_buff[0] >= '0' && rx_buff[0] <= '5'){
+							time_buff[time_index] = rx_buff[0];
+							time_index++;
+						}else{
+							TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 5!\r\n");
+						}
+					}
+
+					else{
+						time_buff[time_index] = rx_buff[0];
+						time_index++;
+					}
 
 					if (time_index == TIME_BUFF_SIZE){
 						break;
@@ -203,8 +249,13 @@ int main(void)
 
 			commandComplete = true;
 
-			if (time_command[0] =='s'){ TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");}
-			else { TransmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");}
+			if (time_command[0] =='s'){
+				SetTime(time_buff);
+				TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
+			}else {
+				//SetAlarm
+				TransmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
+			}
 
 		}else if(rx_buff[0] == 't'){
 			TransmitData(&huart2, (const uint8_t*) tones_menu);
@@ -390,7 +441,7 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 0;
+  sTime.Hours = 12;
   sTime.Minutes = 0;
   sTime.Seconds = 0;
   sTime.SubSeconds = 0;
