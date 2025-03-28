@@ -54,11 +54,14 @@ const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
 const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone\r\n";
 const char* receive_err = "Failed to process input. Try again.\r\n";
+
 I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 RTC_DateTypeDef Date;
 RTC_TimeTypeDef Time;
+RTC_AlarmTypeDef Alarm;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -87,12 +90,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		uartRxComplete = true;
 	}
 }
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
+{
+  //PLAYYYYYYY BUZZZZZZZZZZZERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+
+}
 int char_to_int(uint8_t character) {
     return (int) character - '0';
 }
-void SetAlarm(void){}
+void SetAlarm(uint8_t *time_buff){
+	HAL_RTC_GetAlarm(&hrtc, &Alarm, RTC_ALARM_A, RTC_FORMAT_BIN);
+
+	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = char_to_int(time_buff[1]);
+	int minute_x3 = char_to_int(time_buff[2]);
+	int minute_x4 = char_to_int(time_buff[3]);
+
+	Alarm.AlarmTime.Hours = hour_x1 * 10 + hour_x2;
+	Alarm.AlarmTime.Minutes = minute_x3 * 10 + minute_x4;
+
+	HAL_RTC_SetAlarm_IT(&hrtc, &Alarm, RTC_FORMAT_BIN);
+}
 void SetTime(uint8_t *time_buff){
-	TransmitData(&huart2, time_buff);
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
@@ -104,8 +123,7 @@ void SetTime(uint8_t *time_buff){
 	Time.Hours = hour_x1 * 10 + hour_x2;
 	Time.Minutes = minute_x3 * 10 + minute_x4;
 
-	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN); //figure what format to set time
-
+	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 }
 void DisplayTime(void){
 	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
@@ -451,8 +469,7 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  uint8_t a = 1;
-  sTime.Hours = a * 10;
+  sTime.Hours = 0;
   sTime.Minutes = 0;
   sTime.Seconds = 0;
   sTime.SubSeconds = 0;
