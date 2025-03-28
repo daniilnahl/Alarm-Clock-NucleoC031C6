@@ -87,13 +87,22 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		uartRxComplete = true;
 	}
 }
+int char_to_int(uint8_t character) {
+    return (int) character - '0';
+}
 void SetAlarm(void){}
 void SetTime(uint8_t *time_buff){
+	TransmitData(&huart2, time_buff);
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
-	Time.Hours = time_buff[0] * 10 + time_buff[1];
-	Time.Minutes = time_buff[2] * 10 + time_buff[3];
+	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = char_to_int(time_buff[1]);
+	int minute_x3 = char_to_int(time_buff[2]);
+	int minute_x4 = char_to_int(time_buff[3]);
+
+	Time.Hours = hour_x1 * 10 + hour_x2;
+	Time.Minutes = minute_x3 * 10 + minute_x4;
 
 	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN); //figure what format to set time
 
@@ -114,6 +123,7 @@ void DisplayTime(void){
     HD44780_PrintStr("Time:   ");
     HD44780_PrintStr(ds_time_buffer);
 }
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -249,9 +259,9 @@ int main(void)
 
 			commandComplete = true;
 
-			if (time_command[0] =='s'){
+			if (time_command[0] == 's'){
 				SetTime(time_buff);
-				TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
+//				TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
 			}else {
 				//SetAlarm
 				TransmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
@@ -441,7 +451,8 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 12;
+  uint8_t a = 1;
+  sTime.Hours = a * 10;
   sTime.Minutes = 0;
   sTime.Seconds = 0;
   sTime.SubSeconds = 0;
