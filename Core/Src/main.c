@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "liquidcrystal_i2c.h"
+#include "tones.c"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -34,6 +35,7 @@
 /* USER CODE END PTD */
 #define TIME_BUFF_SIZE 4
 #define TIMEOUT 500
+#define TIM_FREQ 48000000
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
@@ -56,14 +58,11 @@ const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy met
 const char* receive_err = "Failed to process input. Try again.\r\n";
 
 I2C_HandleTypeDef hi2c1;
-
 RTC_HandleTypeDef hrtc;
 RTC_DateTypeDef Date;
 RTC_TimeTypeDef Time;
 RTC_AlarmTypeDef Alarm;
-
 TIM_HandleTypeDef htim1;
-
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -80,67 +79,16 @@ static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
-	if(huart->Instance == huart2.Instance){
-		uartTxComplete = true;
-	}
-}
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	if(huart->Instance == huart2.Instance){
-		uartRxComplete = true;
-	}
-}
-void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
-{
-  //PLAYYYYYYY BUZZZZZZZZZZZERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
-
-}
-int char_to_int(uint8_t character) {
-    return (int) character - '0';
-}
-void SetAlarm(uint8_t *time_buff){
-	HAL_RTC_GetAlarm(&hrtc, &Alarm, RTC_ALARM_A, RTC_FORMAT_BIN);
-
-	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
-	int hour_x2 = char_to_int(time_buff[1]);
-	int minute_x3 = char_to_int(time_buff[2]);
-	int minute_x4 = char_to_int(time_buff[3]);
-
-	Alarm.AlarmTime.Hours = hour_x1 * 10 + hour_x2;
-	Alarm.AlarmTime.Minutes = minute_x3 * 10 + minute_x4;
-
-	HAL_RTC_SetAlarm_IT(&hrtc, &Alarm, RTC_FORMAT_BIN);
-}
-void SetTime(uint8_t *time_buff){
-	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
-	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
-
-	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
-	int hour_x2 = char_to_int(time_buff[1]);
-	int minute_x3 = char_to_int(time_buff[2]);
-	int minute_x4 = char_to_int(time_buff[3]);
-
-	Time.Hours = hour_x1 * 10 + hour_x2;
-	Time.Minutes = minute_x3 * 10 + minute_x4;
-
-	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
-}
-void DisplayTime(void){
-	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
-
-	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
-	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN); //also needs this to unlock shadow registers
-
-    //Format: HH:MM:SS (constructs a "string" into the buffer)
-    snprintf(ds_time_buffer, sizeof(ds_time_buffer), "%02d:%02d:%02d", Time.Hours, Time.Minutes, Time.Seconds);
-    //Format: year:month:day (constructs a "string" into the buffer)
-
-
-    HD44780_Clear();
-    HD44780_SetCursor(0, 0);
-    HD44780_PrintStr("Time:   ");
-    HD44780_PrintStr(ds_time_buffer);
-}
+int presForFrequency (int frequency);
+void playTone(int *tone, int *duration, int *pause, int size);
+void noTone (void);
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart);
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc);
+int charToInt(uint8_t character);
+void SetAlarm(uint8_t *time_buff);
+void SetTime(uint8_t *time_buff);
+void DisplayTime(void);
 
 /* USER CODE BEGIN PFP */
 
@@ -339,7 +287,90 @@ void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
 		HAL_UART_Transmit_IT(huart, pData, 1);
 		}
 	}
+int presForFrequency (int frequency)
+{
+	if (frequency == 0) return 0;
+	return ((TIM_FREQ/(1000*frequency))-1);  // 1 is added in the register
+}
+void playTone(int *tone, int *duration, int *pause, int size){
+	for (int i=0; i<size; i++)
+	{
+		int pres = presForFrequency(tone[i]);  // calculate prescaler
+		int dur = duration[i];  // calculate duration
+		int pauseBetweenTones = 0;
 
+		__HAL_TIM_SET_PRESCALER(&htim1, pres);
+		HAL_Delay(dur);   // how long the tone will play
+		noTone();  // pause
+	}
+}
+void noTone (void)
+{
+	__HAL_TIM_SET_PRESCALER(&htim1, 0);
+}
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == huart2.Instance){
+		uartTxComplete = true;
+	}
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == huart2.Instance){
+		uartRxComplete = true;
+	}
+}
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
+{
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+  //PLAYYYYYYY BUZZZZZZZZZZZERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+
+}
+int charToInt(uint8_t character) {
+    return (int) character - '0';
+}
+void SetAlarm(uint8_t *time_buff){
+	HAL_RTC_GetAlarm(&hrtc, &Alarm, RTC_ALARM_A, RTC_FORMAT_BIN);
+
+	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = char_to_int(time_buff[1]);
+	int minute_x3 = char_to_int(time_buff[2]);
+	int minute_x4 = char_to_int(time_buff[3]);
+
+	Alarm.AlarmTime.Hours = hour_x1 * 10 + hour_x2;
+	Alarm.AlarmTime.Minutes = minute_x3 * 10 + minute_x4;
+
+	HAL_RTC_SetAlarm_IT(&hrtc, &Alarm, RTC_FORMAT_BIN);
+}
+void SetTime(uint8_t *time_buff){
+	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
+
+	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = char_to_int(time_buff[1]);
+	int minute_x3 = char_to_int(time_buff[2]);
+	int minute_x4 = char_to_int(time_buff[3]);
+
+	Time.Hours = hour_x1 * 10 + hour_x2;
+	Time.Minutes = minute_x3 * 10 + minute_x4;
+
+	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
+}
+void DisplayTime(void){
+	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
+
+	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
+	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN); //also needs this to unlock shadow registers
+
+    //Format: HH:MM:SS (constructs a "string" into the buffer)
+    snprintf(ds_time_buffer, sizeof(ds_time_buffer), "%02d:%02d:%02d", Time.Hours, Time.Minutes, Time.Seconds);
+    //Format: year:month:day (constructs a "string" into the buffer)
+
+
+    HD44780_Clear();
+    HD44780_SetCursor(0, 0);
+    HD44780_PrintStr("Time:   ");
+    HD44780_PrintStr(ds_time_buffer);
+}
 /**
   * @brief System Clock Configuration
   * @retval None
