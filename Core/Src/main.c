@@ -71,9 +71,9 @@ UART_HandleTypeDef huart2;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData);
-void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData);
-uint8_t* ReceiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff);
+void transmitData(UART_HandleTypeDef *huart, const uint8_t *pData);
+void transmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData);
+uint8_t* receiveData(UART_HandleTypeDef *huart, uint8_t *receiveBuff);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
@@ -86,9 +86,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart);
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc);
 int charToInt(uint8_t character);
-void SetAlarm(uint8_t *time_buff);
-void SetTime(uint8_t *time_buff);
-void DisplayTime(void);
+void setAlarm(uint8_t *time_buff);
+void setTime(uint8_t *time_buff);
+void displayTime(void);
 
 /* USER CODE BEGIN PFP */
 
@@ -133,6 +133,7 @@ int main(void)
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   HD44780_Init(2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_Delay(100);
   /* USER CODE BEGIN 2 */
 
@@ -147,15 +148,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  TransmitData(&huart2, (const uint8_t*) main_menu);
+  transmitData(&huart2, (const uint8_t*) main_menu);
   //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
   //NOTE TO SELF: implement proper time handling. Eg x1 cant be greater than 2 another example then x2 cant be greater than 3 since there is no 24:00 just 23:59.
   while (1){
-
 	  timestamp1 = HAL_GetTick();
 
 	   if (timestamp1 - timestamp2 >= TIMEOUT){
-		   DisplayTime();
+		   displayTime();
 		   timestamp2 = timestamp1;
 	   	}
 
@@ -163,7 +163,7 @@ int main(void)
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
 
-			TransmitData(&huart2, (const uint8_t*) time_menu);
+			transmitData(&huart2, (const uint8_t*) time_menu);
 
 			commandComplete = false;
 			time_index = 0;
@@ -182,7 +182,7 @@ int main(void)
 								time_buff[time_index] = rx_buff[0];
 								time_index++;
 						}else{
-							TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 2!\r\n");
+							transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 2!\r\n");
 						}
 					}
 
@@ -195,7 +195,7 @@ int main(void)
 									time_buff[time_index] = rx_buff[0];
 									time_index++;
 							}else{
-								TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 3!\r\n");
+								transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 3!\r\n");
 							}
 						}
 					}
@@ -205,7 +205,7 @@ int main(void)
 							time_buff[time_index] = rx_buff[0];
 							time_index++;
 						}else{
-							TransmitData(&huart2, (const uint8_t*) "Value must be between 0 and 5!\r\n");
+							transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 5!\r\n");
 						}
 					}
 
@@ -226,15 +226,15 @@ int main(void)
 			commandComplete = true;
 
 			if (time_command[0] == 's'){
-				SetTime(time_buff);
+				setTime(time_buff);
 //				TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
 			}else {
 				//SetAlarm
-				TransmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
+				transmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
 			}
 
 		}else if(rx_buff[0] == 't'){
-			TransmitData(&huart2, (const uint8_t*) tones_menu);
+			transmitData(&huart2, (const uint8_t*) tones_menu);
 			commandComplete = false;
 
 			while (!commandComplete){
@@ -245,17 +245,17 @@ int main(void)
 					//code for setting the tone
 					//make a function that would return true and assign that value to commandComplete
 
-					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to sigma grindset.\r\n");
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to sigma grindset.\r\n");
 					commandComplete = true;
 				}else if(rx_buff[0] == '2'){
 					//code for setting the tone
 
-					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to heavy metal.\r\n");
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to heavy metal.\r\n");
 					commandComplete = true;
 				}else if(rx_buff[0] == '3'){
 					//code for setting the tone
 
-					TransmitData(&huart2, (const uint8_t*) "Alarm tone set to calm tone.\r\n");
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to calm tone.\r\n");
 					commandComplete = true;
 				}
 			}
@@ -266,14 +266,14 @@ int main(void)
 		//resets flag and restart reception
 		uartRxComplete = false;
         HAL_UART_Receive_IT(&huart2, rx_buff, 1);
-        TransmitData(&huart2, (const uint8_t*) main_menu);
+        transmitData(&huart2, (const uint8_t*) main_menu);
 		}
 
 	  }
 
 }
 
-void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
+void transmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
 	if (uartTxComplete){
 		uartTxComplete = false;
 		uint16_t dataSize = strlen((const char*)pData);
@@ -281,13 +281,13 @@ void TransmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
 		}
 	}
 
-void TransmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
+void transmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
 	if (uartTxComplete){
 		uartTxComplete = false;
 		HAL_UART_Transmit_IT(huart, pData, 1);
 		}
 	}
-int presForFrequency (int frequency)
+int presForFrequency (int frequency)// calculates prescaler value
 {
 	if (frequency == 0) return 0;
 	return ((TIM_FREQ/(1000*frequency))-1);  // 1 is added in the register
@@ -297,7 +297,6 @@ void playTone(int *tone, int *duration, int *pause, int size){
 	{
 		int pres = presForFrequency(tone[i]);  // calculate prescaler
 		int dur = duration[i];  // calculate duration
-		int pauseBetweenTones = 0;
 
 		__HAL_TIM_SET_PRESCALER(&htim1, pres);
 		HAL_Delay(dur);   // how long the tone will play
@@ -328,34 +327,34 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 int charToInt(uint8_t character) {
     return (int) character - '0';
 }
-void SetAlarm(uint8_t *time_buff){
+void setAlarm(uint8_t *time_buff){
 	HAL_RTC_GetAlarm(&hrtc, &Alarm, RTC_ALARM_A, RTC_FORMAT_BIN);
 
-	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
-	int hour_x2 = char_to_int(time_buff[1]);
-	int minute_x3 = char_to_int(time_buff[2]);
-	int minute_x4 = char_to_int(time_buff[3]);
+	int hour_x1 = charToInt(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = charToInt(time_buff[1]);
+	int minute_x3 = charToInt(time_buff[2]);
+	int minute_x4 = charToInt(time_buff[3]);
 
 	Alarm.AlarmTime.Hours = hour_x1 * 10 + hour_x2;
 	Alarm.AlarmTime.Minutes = minute_x3 * 10 + minute_x4;
 
 	HAL_RTC_SetAlarm_IT(&hrtc, &Alarm, RTC_FORMAT_BIN);
 }
-void SetTime(uint8_t *time_buff){
+void setTime(uint8_t *time_buff){
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
-	int hour_x1 = char_to_int(time_buff[0]); //array indexing which automatically dererferences the pointers
-	int hour_x2 = char_to_int(time_buff[1]);
-	int minute_x3 = char_to_int(time_buff[2]);
-	int minute_x4 = char_to_int(time_buff[3]);
+	int hour_x1 = charToInt(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x2 = charToInt(time_buff[1]);
+	int minute_x3 = charToInt(time_buff[2]);
+	int minute_x4 = charToInt(time_buff[3]);
 
 	Time.Hours = hour_x1 * 10 + hour_x2;
 	Time.Minutes = minute_x3 * 10 + minute_x4;
 
 	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 }
-void DisplayTime(void){
+void displayTime(void){
 	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
 
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
@@ -564,9 +563,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 4800;
+  htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 5000;
+  htim1.Init.Period = 1000;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -591,7 +590,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 500;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
