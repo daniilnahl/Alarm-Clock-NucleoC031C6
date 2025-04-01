@@ -48,9 +48,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 //global flags to indicate if uart transmission is complete
-volatile bool uartTxComplete = true;
-volatile bool uartRxComplete = false;
-volatile bool commandComplete = true;
+volatile bool uart_tx_complete = true;
+volatile bool uart_rx_complete = false;
+volatile bool command_complete = true;
 
 const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
@@ -159,21 +159,21 @@ int main(void)
 		   timestamp2 = timestamp1;
 	   	}
 
-	  if (uartTxComplete && uartRxComplete && commandComplete){//ready to transmit
+	  if (uart_tx_complete && uart_rx_complete && command_complete){//ready to transmit
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
 
 			transmitData(&huart2, (const uint8_t*) time_menu);
 
-			commandComplete = false;
+			command_complete = false;
 			time_index = 0;
-			uartRxComplete = false;
+			uart_rx_complete = false;
 
 			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
 			while (time_index < TIME_BUFF_SIZE){
-				if (uartRxComplete){
-					uartRxComplete = false;
+				if (uart_rx_complete){
+					uart_rx_complete = false;
 
 
 				if (rx_buff[0] >= '0' && rx_buff[0] <= '9'){
@@ -223,7 +223,7 @@ int main(void)
 				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 			}
 
-			commandComplete = true;
+			command_complete = true;
 
 			if (time_command[0] == 's'){
 				setTime(time_buff);
@@ -235,10 +235,10 @@ int main(void)
 
 		}else if(rx_buff[0] == 't'){
 			transmitData(&huart2, (const uint8_t*) tones_menu);
-			commandComplete = false;
+			command_complete = false;
 
-			while (!commandComplete){
-				uartRxComplete = false;
+			while (!command_complete){
+				uart_rx_complete = false;
 				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
 				if(rx_buff[0] == '1'){
@@ -246,17 +246,17 @@ int main(void)
 					//make a function that would return true and assign that value to commandComplete
 
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to sigma grindset.\r\n");
-					commandComplete = true;
+					command_complete = true;
 				}else if(rx_buff[0] == '2'){
 					//code for setting the tone
 
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to heavy metal.\r\n");
-					commandComplete = true;
+					command_complete = true;
 				}else if(rx_buff[0] == '3'){
 					//code for setting the tone
 
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to calm tone.\r\n");
-					commandComplete = true;
+					command_complete = true;
 				}
 			}
 		}
@@ -264,7 +264,7 @@ int main(void)
 
 
 		//resets flag and restart reception
-		uartRxComplete = false;
+		uart_rx_complete = false;
         HAL_UART_Receive_IT(&huart2, rx_buff, 1);
         transmitData(&huart2, (const uint8_t*) main_menu);
 		}
@@ -274,16 +274,16 @@ int main(void)
 }
 
 void transmitData(UART_HandleTypeDef *huart, const uint8_t *pData){
-	if (uartTxComplete){
-		uartTxComplete = false;
+	if (uart_tx_complete){
+		uart_tx_complete = false;
 		uint16_t dataSize = strlen((const char*)pData);
 		HAL_UART_Transmit_IT(huart, pData, dataSize);
 		}
 	}
 
 void transmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
-	if (uartTxComplete){
-		uartTxComplete = false;
+	if (uart_tx_complete){
+		uart_tx_complete = false;
 		HAL_UART_Transmit_IT(huart, pData, 1);
 		}
 	}
@@ -309,12 +309,12 @@ void noTone (void)
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == huart2.Instance){
-		uartTxComplete = true;
+		uart_tx_complete = true;
 	}
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == huart2.Instance){
-		uartRxComplete = true;
+		uart_rx_complete = true;
 	}
 }
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
