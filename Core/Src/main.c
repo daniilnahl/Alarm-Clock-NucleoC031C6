@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "liquidcrystal_i2c.h"
-#include "tones.c"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,12 +50,31 @@
 volatile bool uart_tx_complete = true;
 volatile bool uart_rx_complete = false;
 volatile bool command_complete = true;
+volatile bool rtc_alarm_complete = false;
 
 const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
 const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone\r\n";
 const char* receive_err = "Failed to process input. Try again.\r\n";
 
+float upbeat_melody[] = {329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758, 293.66476791740746,
+		  261.6255653005986, 293.66476791740746, 329.6275569134758, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935,
+		  329.6275569134758, 293.66476791740746, 261.6255653005986, 293.66476791740746, 329.6275569134758, 391.99543598166935, 329.6275569134758,
+		  261.6255653005986, 293.66476791740746, 329.6275569134758, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986};
+float morning_melody[] = {261.6255653005986, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758,
+		  261.6255653005986, 195.99771799083467, 261.6255653005986, 349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758,
+		  293.66476791740746, 261.6255653005986, 195.99771799083467, 261.6255653005986, 293.66476791740746, 329.6275569134758,
+		  391.99543598166935, 440.0, 523.2511306011972, 440.0, 391.99543598166935, 349.2282314330038, 293.66476791740746, 261.6255653005986};
+float imperial_melody[] = {261.6255653005986, 391.99543598166935, 329.6275569134758, 261.6255653005986, 391.99543598166935,
+		  329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467, 391.99543598166935, 329.6275569134758,
+		  261.6255653005986, 391.99543598166935, 329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467,
+		  349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986, 293.66476791740746, 261.6255653005986,
+		  195.99771799083467, 261.6255653005986};
+
+unsigned melody_arr_counter;
+unsigned melody_arr_size;
+unsigned melody_arr_time;
+float *melody_pointer;
 I2C_HandleTypeDef hi2c1;
 RTC_HandleTypeDef hrtc;
 RTC_DateTypeDef Date;
@@ -135,29 +153,46 @@ int main(void)
   HD44780_Init(2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_Delay(100);
-  /* USER CODE BEGIN 2 */
 
-  /* USER CODE END 2 */
   int time_index = 0;
+
   uint8_t time_command[1];
   uint8_t time_buff[TIME_BUFF_SIZE];
   uint8_t rx_buff[1];
 
-  uint32_t timestamp1 = 0, timestamp2 = 0;
-  HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+  uint32_t timestamp_main = 0, timestamp_lcd = 0, timestamp_audio = 0; //when alarm callback is invoked will the variables be able to cycle inside of it to play the whole melody?
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+  HAL_UART_Receive_IT(&huart2, rx_buff, 1);
   transmitData(&huart2, (const uint8_t*) main_menu);
   //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
-  //NOTE TO SELF: implement proper time handling. Eg x1 cant be greater than 2 another example then x2 cant be greater than 3 since there is no 24:00 just 23:59.
   while (1){
-	  timestamp1 = HAL_GetTick();
+	  timestamp_main = HAL_GetTick();
 
-	   if (timestamp1 - timestamp2 >= TIMEOUT){
+	   if (timestamp_main - timestamp_lcd >= TIMEOUT){
 		   displayTime();
-		   timestamp2 = timestamp1;
+		   timestamp_lcd = timestamp_main;
 	   	}
+
+		melody_pointer = &imperial_melody[0];
+		melody_arr_size = sizeof(imperial_melody);
+		melody_arr_time = 600;
+		rtc_alarm_complete = true;
+
+	   if (rtc_alarm_complete){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
+		   	if (timestamp_main - timestamp_audio >= melody_arr_time && melody_arr_counter < melody_arr_size){
+		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_pointer[melody_arr_counter]));
+		   		melody_arr_counter++;
+		   		timestamp_audio = timestamp_main;
+		   	}
+
+		   	if (melody_arr_counter == melody_arr_size){//stop playback when on last element
+		   		rtc_alarm_complete = false;
+		   		melody_arr_counter = 0;
+		   	}
+	   }
+
+
+
 
 	  if (uart_tx_complete && uart_rx_complete && command_complete){//ready to transmit
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
@@ -227,7 +262,7 @@ int main(void)
 
 			if (time_command[0] == 's'){
 				setTime(time_buff);
-//				TransmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
+				transmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
 			}else {
 				//SetAlarm
 				transmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
@@ -242,20 +277,25 @@ int main(void)
 				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
 				if(rx_buff[0] == '1'){
-					//code for setting the tone
-					//make a function that would return true and assign that value to commandComplete
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to upbeat melody.\r\n");
+					melody_pointer = &upbeat_melody[0];
+					melody_arr_size = sizeof(upbeat_melody);
+					melody_arr_time = 500;
 
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to sigma grindset.\r\n");
 					command_complete = true;
 				}else if(rx_buff[0] == '2'){
-					//code for setting the tone
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to morning melody.\r\n");
+					melody_pointer = &morning_melody[0];
+					melody_arr_size = sizeof(morning_melody);
+					melody_arr_time = 750;
 
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to heavy metal.\r\n");
 					command_complete = true;
 				}else if(rx_buff[0] == '3'){
-					//code for setting the tone
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to imperial tone.\r\n");
+					melody_pointer = &imperial_melody[0];
+					melody_arr_size = sizeof(imperial_melody);
+					melody_arr_time = 600;
 
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to calm tone.\r\n");
 					command_complete = true;
 				}
 			}
@@ -290,22 +330,7 @@ void transmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
 int presForFrequency (int frequency)// calculates prescaler value
 {
 	if (frequency == 0) return 0;
-	return ((TIM_FREQ/(1000*frequency))-1);  // 1 is added in the register
-}
-void playTone(int *tone, int *duration, int *pause, int size){
-	for (int i=0; i<size; i++)
-	{
-		int pres = presForFrequency(tone[i]);  // calculate prescaler
-		int dur = duration[i];  // calculate duration
-
-		__HAL_TIM_SET_PRESCALER(&htim1, pres);
-		HAL_Delay(dur);   // how long the tone will play
-		noTone();  // pause
-	}
-}
-void noTone (void)
-{
-	__HAL_TIM_SET_PRESCALER(&htim1, 0);
+	return ((TIM_FREQ/(1000*frequency))-1);
 }
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == huart2.Instance){
@@ -317,12 +342,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		uart_rx_complete = true;
 	}
 }
-void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
-{
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-
-  //PLAYYYYYYY BUZZZZZZZZZZZERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
-
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc){
+		rtc_alarm_complete = true;
 }
 int charToInt(uint8_t character) {
     return (int) character - '0';
