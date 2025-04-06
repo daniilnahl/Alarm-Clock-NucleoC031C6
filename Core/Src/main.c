@@ -54,7 +54,7 @@ volatile bool rtc_alarm_complete = false;
 
 const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
-const char* tones_menu = "Available tones\r\n1 - sigma grindset\r\n2 - heavy metal\r\n3 - calm tone\r\n";
+const char* tones_menu = "Available tones\r\n1 - upbeat melody\r\n2 - morning melody\r\n3 - imperial melody\r\n";
 const char* receive_err = "Failed to process input. Try again.\r\n";
 
 float upbeat_melody[] = {329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758, 293.66476791740746,
@@ -173,10 +173,6 @@ int main(void)
 		   timestamp_lcd = timestamp_main;
 	   	}
 
-		melody_pointer = &imperial_melody[0];
-		melody_arr_size = sizeof(imperial_melody);
-		melody_arr_time = 600;
-		rtc_alarm_complete = true;
 
 	   if (rtc_alarm_complete){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
 		   	if (timestamp_main - timestamp_audio >= melody_arr_time && melody_arr_counter < melody_arr_size){
@@ -264,7 +260,7 @@ int main(void)
 				setTime(time_buff);
 				transmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
 			}else {
-				//SetAlarm
+				setAlarm(time_buff);
 				transmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
 			}
 
