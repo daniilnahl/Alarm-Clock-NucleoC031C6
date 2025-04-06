@@ -35,6 +35,7 @@
 #define TIME_BUFF_SIZE 4
 #define TIMEOUT 500
 #define TIM_FREQ 48000000
+#define DEFAULT_PLAYBACK 700
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
@@ -50,7 +51,9 @@
 volatile bool uart_tx_complete = true;
 volatile bool uart_rx_complete = false;
 volatile bool command_complete = true;
-volatile bool rtc_alarm_complete = false;
+volatile bool play_alarm_melody = false;
+volatile bool display_alarm = false;
+
 
 const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
@@ -70,11 +73,14 @@ float imperial_melody[] = {261.6255653005986, 391.99543598166935, 329.6275569134
 		  261.6255653005986, 391.99543598166935, 329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467,
 		  349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986, 293.66476791740746, 261.6255653005986,
 		  195.99771799083467, 261.6255653005986};
+float default_melody[] = {32.70319566257483, 36.70809598967593, 41.20344461418447,  48.99942949770867, 61.73541265701323, 77.78174593052023,
+		  92.4986056793128, 103.8261743949862, 116.54094037972055, 130.8127826502993, 146.83238395870372, 161.111};
 
-unsigned melody_arr_counter;
-unsigned melody_arr_size;
-unsigned melody_arr_time;
-float *melody_pointer;
+unsigned melody_arr_counter = 0;
+unsigned melody_arr_size = sizeof(default_melody);
+unsigned melody_playback_speed = DEFAULT_PLAYBACK;
+float *melody_pointer = &default_melody[0];
+
 I2C_HandleTypeDef hi2c1;
 RTC_HandleTypeDef hrtc;
 RTC_DateTypeDef Date;
@@ -106,8 +112,9 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc);
 int charToInt(uint8_t character);
 void setAlarm(uint8_t *time_buff);
 void setTime(uint8_t *time_buff);
-void displayTime(void);
-
+void displayTime(volatile bool display_alarm);
+void displayAlarm(void);
+void clearAlarm(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -168,26 +175,25 @@ int main(void)
   while (1){
 	  timestamp_main = HAL_GetTick();
 
-	   if (timestamp_main - timestamp_lcd >= TIMEOUT){
-		   displayTime();
-		   timestamp_lcd = timestamp_main;
-	   	}
-
-
-	   if (rtc_alarm_complete){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
-		   	if (timestamp_main - timestamp_audio >= melody_arr_time && melody_arr_counter < melody_arr_size){
+	   if (play_alarm_melody){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
+		   	if (timestamp_main - timestamp_audio >= melody_playback_speed && melody_arr_counter < melody_arr_size){
 		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_pointer[melody_arr_counter]));
 		   		melody_arr_counter++;
 		   		timestamp_audio = timestamp_main;
 		   	}
 
 		   	if (melody_arr_counter == melody_arr_size){//stop playback when on last element
-		   		rtc_alarm_complete = false;
+		   		play_alarm_melody = false;
+		   		display_alarm = false;
 		   		melody_arr_counter = 0;
+		   		HD44780_Clear();
 		   	}
 	   }
 
-
+	   if (timestamp_main - timestamp_lcd >= TIMEOUT){
+		   displayTime(display_alarm);
+		   timestamp_lcd = timestamp_main;
+	   	}
 
 
 	  if (uart_tx_complete && uart_rx_complete && command_complete){//ready to transmit
@@ -261,7 +267,7 @@ int main(void)
 				transmitData(&huart2, (const uint8_t*) "Time set!\r\r\n\n");
 			}else {
 				setAlarm(time_buff);
-				transmitData(&huart2, (const uint8_t*) "Alarm set!\r\r\n\n");
+				transmitData(&huart2,(const uint8_t*) "Alarm set!\r\r\n\n");
 			}
 
 		}else if(rx_buff[0] == 't'){
@@ -276,21 +282,21 @@ int main(void)
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to upbeat melody.\r\n");
 					melody_pointer = &upbeat_melody[0];
 					melody_arr_size = sizeof(upbeat_melody);
-					melody_arr_time = 500;
+					melody_playback_speed = 500;
 
 					command_complete = true;
 				}else if(rx_buff[0] == '2'){
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to morning melody.\r\n");
 					melody_pointer = &morning_melody[0];
 					melody_arr_size = sizeof(morning_melody);
-					melody_arr_time = 750;
+					melody_playback_speed = 750;
 
 					command_complete = true;
 				}else if(rx_buff[0] == '3'){
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to imperial tone.\r\n");
+					transmitData(&huart2, (const uint8_t*) "Alarm tone set to imperial melody.\r\n");
 					melody_pointer = &imperial_melody[0];
 					melody_arr_size = sizeof(imperial_melody);
-					melody_arr_time = 600;
+					melody_playback_speed = 600;
 
 					command_complete = true;
 				}
@@ -339,7 +345,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	}
 }
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc){
-		rtc_alarm_complete = true;
+		play_alarm_melody = true;
+		display_alarm = true;
 }
 int charToInt(uint8_t character) {
     return (int) character - '0';
@@ -371,7 +378,7 @@ void setTime(uint8_t *time_buff){
 
 	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 }
-void displayTime(void){
+void displayTime(volatile bool display_alarm){
 	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
 
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
@@ -381,11 +388,23 @@ void displayTime(void){
     snprintf(ds_time_buffer, sizeof(ds_time_buffer), "%02d:%02d:%02d", Time.Hours, Time.Minutes, Time.Seconds);
     //Format: year:month:day (constructs a "string" into the buffer)
 
-
-    HD44780_Clear();
+    HD44780_Home();
     HD44780_SetCursor(0, 0);
     HD44780_PrintStr("Time:   ");
     HD44780_PrintStr(ds_time_buffer);
+
+    if (display_alarm){
+        HD44780_SetCursor(0, 1);
+        HD44780_PrintStr("ALARM!!!!!");
+    }
+}
+void displayAlarm(void){
+    HD44780_SetCursor(0, 1);
+    HD44780_PrintStr("ALARM!!!!!");
+}
+void clearAlarm(void){
+    HD44780_SetCursor(0, 1);
+    HD44780_PrintStr("");
 }
 /**
   * @brief System Clock Configuration
@@ -518,7 +537,7 @@ static void MX_RTC_Init(void)
   */
   sTime.Hours = 0;
   sTime.Minutes = 0;
-  sTime.Seconds = 0;
+  sTime.Seconds = 45;
   sTime.SubSeconds = 0;
   sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   sTime.StoreOperation = RTC_STOREOPERATION_RESET;
