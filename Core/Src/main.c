@@ -62,8 +62,7 @@ const char* receive_err = "Failed to process input. Try again.\r\n";
 
 float upbeat_melody[] = {329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758, 293.66476791740746,
 		  261.6255653005986, 293.66476791740746, 329.6275569134758, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935,
-		  329.6275569134758, 293.66476791740746, 261.6255653005986, 293.66476791740746, 329.6275569134758, 391.99543598166935, 329.6275569134758,
-		  261.6255653005986, 293.66476791740746, 329.6275569134758, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986};
+		  329.6275569134758, 293.66476791740746, 261.6255653005986, 293.66476791740746, 329.6275569134758, 391.99543598166935, 329.6275569134758};
 float morning_melody[] = {261.6255653005986, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758,
 		  261.6255653005986, 195.99771799083467, 261.6255653005986, 349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758,
 		  293.66476791740746, 261.6255653005986, 195.99771799083467, 261.6255653005986, 293.66476791740746, 329.6275569134758,
@@ -73,13 +72,11 @@ float imperial_melody[] = {261.6255653005986, 391.99543598166935, 329.6275569134
 		  261.6255653005986, 391.99543598166935, 329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467,
 		  349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986, 293.66476791740746, 261.6255653005986,
 		  195.99771799083467, 261.6255653005986};
-float default_melody[] = {32.70319566257483, 36.70809598967593, 41.20344461418447,  48.99942949770867, 61.73541265701323, 77.78174593052023,
-		  92.4986056793128, 103.8261743949862, 116.54094037972055, 130.8127826502993, 146.83238395870372, 161.111};
 
 unsigned melody_arr_counter = 0;
-unsigned melody_arr_size = sizeof(default_melody);
+unsigned melody_arr_size;
 unsigned melody_playback_speed = DEFAULT_PLAYBACK;
-float *melody_pointer = &default_melody[0];
+float *melody_pointer;
 
 I2C_HandleTypeDef hi2c1;
 RTC_HandleTypeDef hrtc;
@@ -103,6 +100,9 @@ static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+void toneMenu();
+void timeMenu();
+void mainMenu();
 int presForFrequency (int frequency);
 void playTone(int *tone, int *duration, int *pause, int size);
 void noTone (void);
@@ -113,8 +113,6 @@ int charToInt(uint8_t character);
 void setAlarm(uint8_t *time_buff);
 void setTime(uint8_t *time_buff);
 void displayTime(volatile bool display_alarm);
-void displayAlarm(void);
-void clearAlarm(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -173,29 +171,6 @@ int main(void)
   transmitData(&huart2, (const uint8_t*) main_menu);
   //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
   while (1){
-	  timestamp_main = HAL_GetTick();
-
-	   if (play_alarm_melody){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
-		   	if (timestamp_main - timestamp_audio >= melody_playback_speed && melody_arr_counter < melody_arr_size){
-		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_pointer[melody_arr_counter]));
-		   		melody_arr_counter++;
-		   		timestamp_audio = timestamp_main;
-		   	}
-
-		   	if (melody_arr_counter == melody_arr_size){//stop playback when on last element
-		   		play_alarm_melody = false;
-		   		display_alarm = false;
-		   		melody_arr_counter = 0;
-		   		HD44780_Clear();
-		   	}
-	   }
-
-	   if (timestamp_main - timestamp_lcd >= TIMEOUT){
-		   displayTime(display_alarm);
-		   timestamp_lcd = timestamp_main;
-	   	}
-
-
 	  if (uart_tx_complete && uart_rx_complete && command_complete){//ready to transmit
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
@@ -282,28 +257,20 @@ int main(void)
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to upbeat melody.\r\n");
 					melody_pointer = &upbeat_melody[0];
 					melody_arr_size = sizeof(upbeat_melody);
-					melody_playback_speed = 500;
-
 					command_complete = true;
 				}else if(rx_buff[0] == '2'){
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to morning melody.\r\n");
 					melody_pointer = &morning_melody[0];
 					melody_arr_size = sizeof(morning_melody);
-					melody_playback_speed = 750;
-
 					command_complete = true;
 				}else if(rx_buff[0] == '3'){
 					transmitData(&huart2, (const uint8_t*) "Alarm tone set to imperial melody.\r\n");
 					melody_pointer = &imperial_melody[0];
 					melody_arr_size = sizeof(imperial_melody);
-					melody_playback_speed = 600;
-
 					command_complete = true;
 				}
 			}
 		}
-
-
 
 		//resets flag and restart reception
 		uart_rx_complete = false;
@@ -311,6 +278,27 @@ int main(void)
         transmitData(&huart2, (const uint8_t*) main_menu);
 		}
 
+	  timestamp_main = HAL_GetTick();
+
+	   if (play_alarm_melody){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
+		   	if (timestamp_main - timestamp_audio >= melody_playback_speed && melody_arr_counter < melody_arr_size){
+		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_pointer[melody_arr_counter]));
+		   		melody_arr_counter++;
+		   		timestamp_audio = timestamp_main;
+		   	}
+
+		   	if (melody_arr_counter == melody_arr_size){
+		   		HD44780_Clear();
+		   		melody_arr_counter = 0;
+		   		display_alarm = false;
+		   		play_alarm_melody = false;
+		   	}
+	   }
+
+	   if (timestamp_main - timestamp_lcd >= TIMEOUT){
+		   displayTime(display_alarm);
+		   timestamp_lcd = timestamp_main;
+	   	}
 	  }
 
 }
@@ -397,14 +385,6 @@ void displayTime(volatile bool display_alarm){
         HD44780_SetCursor(0, 1);
         HD44780_PrintStr("ALARM!!!!!");
     }
-}
-void displayAlarm(void){
-    HD44780_SetCursor(0, 1);
-    HD44780_PrintStr("ALARM!!!!!");
-}
-void clearAlarm(void){
-    HD44780_SetCursor(0, 1);
-    HD44780_PrintStr("");
 }
 /**
   * @brief System Clock Configuration
