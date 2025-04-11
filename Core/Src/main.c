@@ -47,7 +47,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-//global flags to indicate if uart transmission is complete
 volatile bool uart_tx_complete = true;
 volatile bool uart_rx_complete = false;
 volatile bool command_complete = true;
@@ -55,28 +54,19 @@ volatile bool play_alarm_melody = false;
 volatile bool display_alarm = false;
 
 
-const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\nt - set alarm tone\r\r\n\n";
+const char* main_menu = "Welcome to Alarm Clock Setup\r\ns - set time (24h)\r\na - set alarm (24h)\r\n\r\n";
 const char* time_menu = "Setting time/alarm (X1X2:X3X4)\r\n";
-const char* tones_menu = "Available tones\r\n1 - upbeat melody\r\n2 - morning melody\r\n3 - imperial melody\r\n";
 const char* receive_err = "Failed to process input. Try again.\r\n";
 
-float upbeat_melody[] = {329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758, 293.66476791740746,
-		  261.6255653005986, 293.66476791740746, 329.6275569134758, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935,
-		  329.6275569134758, 293.66476791740746, 261.6255653005986, 293.66476791740746, 329.6275569134758, 391.99543598166935, 329.6275569134758};
-float morning_melody[] = {261.6255653005986, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758,
-		  261.6255653005986, 195.99771799083467, 261.6255653005986, 349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758,
-		  293.66476791740746, 261.6255653005986, 195.99771799083467, 261.6255653005986, 293.66476791740746, 329.6275569134758,
-		  391.99543598166935, 440.0, 523.2511306011972, 440.0, 391.99543598166935, 349.2282314330038, 293.66476791740746, 261.6255653005986};
-float imperial_melody[] = {261.6255653005986, 391.99543598166935, 329.6275569134758, 261.6255653005986, 391.99543598166935,
-		  329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467, 391.99543598166935, 329.6275569134758,
-		  261.6255653005986, 391.99543598166935, 329.6275569134758, 293.66476791740746, 261.6255653005986, 195.99771799083467,
-		  349.2282314330038, 440.0, 391.99543598166935, 329.6275569134758, 261.6255653005986, 293.66476791740746, 261.6255653005986,
-		  195.99771799083467, 261.6255653005986};
+float melody_1[] = {329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935, 329.6275569134758, 293.66476791740746,
+		  261.6255653005986, 293.66476791740746, 329.6275569134758, 329.6275569134758, 391.99543598166935, 440.0, 391.99543598166935};
 
 unsigned melody_arr_counter = 0;
-unsigned melody_arr_size;
+unsigned melody_arr_size = sizeof(melody_1);
 unsigned melody_playback_speed = DEFAULT_PLAYBACK;
-float *melody_pointer;
+
+uint8_t time_buff[TIME_BUFF_SIZE];
+uint8_t rx_buff[1];
 
 I2C_HandleTypeDef hi2c1;
 RTC_HandleTypeDef hrtc;
@@ -101,7 +91,7 @@ static void MX_RTC_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
 void toneMenu();
-void timeMenu();
+void timeInput(int time_index);
 void mainMenu();
 int presForFrequency (int frequency);
 void playTone(int *tone, int *duration, int *pause, int size);
@@ -162,16 +152,13 @@ int main(void)
   int time_index = 0;
 
   uint8_t time_command[1];
-  uint8_t time_buff[TIME_BUFF_SIZE];
-  uint8_t rx_buff[1];
 
-  uint32_t timestamp_main = 0, timestamp_lcd = 0, timestamp_audio = 0; //when alarm callback is invoked will the variables be able to cycle inside of it to play the whole melody?
+  uint32_t timestamp_main = 0, timestamp_lcd = 0, timestamp_audio = 0;
 
   HAL_UART_Receive_IT(&huart2, rx_buff, 1);
   transmitData(&huart2, (const uint8_t*) main_menu);
-  //NOTE TO SELF: make the whole menu a function which is called inside the main while loop
   while (1){
-	  if (uart_tx_complete && uart_rx_complete && command_complete){//ready to transmit
+	  if (uart_tx_complete && uart_rx_complete && command_complete){
 		if (rx_buff[0] == 's' || rx_buff[0] == 'a'){
 			time_command[0] = rx_buff[0];
 
@@ -183,58 +170,7 @@ int main(void)
 
 			HAL_UART_Receive_IT(&huart2, rx_buff, 1);
 
-			while (time_index < TIME_BUFF_SIZE){
-				if (uart_rx_complete){
-					uart_rx_complete = false;
-
-
-				if (rx_buff[0] >= '0' && rx_buff[0] <= '9'){
-					if (time_index == 0){ //first value can only be from 0 to 2
-						if (rx_buff[0] >= '0' && rx_buff[0] <= '2'){
-								time_buff[time_index] = rx_buff[0];
-								time_index++;
-						}else{
-							transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 2!\r\n");
-						}
-					}
-
-					else if (time_index == 1){
-						if (time_buff[0] == '0' || time_buff[0] == '1'){//if at index 0 values is 1 or 0 then value at index 1 can be from 0 to 9
-							time_buff[time_index] = rx_buff[0];
-							time_index++;
-						}else{
-							if (rx_buff[0] >= '0' && rx_buff[0] <= '3'){
-									time_buff[time_index] = rx_buff[0];
-									time_index++;
-							}else{
-								transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 3!\r\n");
-							}
-						}
-					}
-
-					else if(time_index == 2){//if at index 0 value is 2  then value at index 1 can be from 0 to 3
-						if (rx_buff[0] >= '0' && rx_buff[0] <= '5'){
-							time_buff[time_index] = rx_buff[0];
-							time_index++;
-						}else{
-							transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 5!\r\n");
-						}
-					}
-
-					else{
-						time_buff[time_index] = rx_buff[0];
-						time_index++;
-					}
-
-					if (time_index == TIME_BUFF_SIZE){
-						break;
-						}
-					}
-				}
-
-				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
-			}
-
+			timeInput(time_index);
 			command_complete = true;
 
 			if (time_command[0] == 's'){
@@ -245,34 +181,7 @@ int main(void)
 				transmitData(&huart2,(const uint8_t*) "Alarm set!\r\r\n\n");
 			}
 
-		}else if(rx_buff[0] == 't'){
-			transmitData(&huart2, (const uint8_t*) tones_menu);
-			command_complete = false;
-
-			while (!command_complete){
-				uart_rx_complete = false;
-				HAL_UART_Receive_IT(&huart2, rx_buff, 1);
-
-				if(rx_buff[0] == '1'){
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to upbeat melody.\r\n");
-					melody_pointer = &upbeat_melody[0];
-					melody_arr_size = sizeof(upbeat_melody);
-					command_complete = true;
-				}else if(rx_buff[0] == '2'){
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to morning melody.\r\n");
-					melody_pointer = &morning_melody[0];
-					melody_arr_size = sizeof(morning_melody);
-					command_complete = true;
-				}else if(rx_buff[0] == '3'){
-					transmitData(&huart2, (const uint8_t*) "Alarm tone set to imperial melody.\r\n");
-					melody_pointer = &imperial_melody[0];
-					melody_arr_size = sizeof(imperial_melody);
-					command_complete = true;
-				}
-			}
 		}
-
-		//resets flag and restart reception
 		uart_rx_complete = false;
         HAL_UART_Receive_IT(&huart2, rx_buff, 1);
         transmitData(&huart2, (const uint8_t*) main_menu);
@@ -280,9 +189,9 @@ int main(void)
 
 	  timestamp_main = HAL_GetTick();
 
-	   if (play_alarm_melody){ //if command that unlocks the playback command (using a callback flag when the alarm interrupt is called)
+	   if (play_alarm_melody){
 		   	if (timestamp_main - timestamp_audio >= melody_playback_speed && melody_arr_counter < melody_arr_size){
-		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_pointer[melody_arr_counter]));
+		   		__HAL_TIM_SET_PRESCALER(&htim1, presForFrequency(melody_1[melody_arr_counter]));
 		   		melody_arr_counter++;
 		   		timestamp_audio = timestamp_main;
 		   	}
@@ -317,7 +226,7 @@ void transmitDataByte(UART_HandleTypeDef *huart, const uint8_t *pData){
 		HAL_UART_Transmit_IT(huart, pData, 1);
 		}
 	}
-int presForFrequency (int frequency)// calculates prescaler value
+int presForFrequency (int frequency)
 {
 	if (frequency == 0) return 0;
 	return ((TIM_FREQ/(1000*frequency))-1);
@@ -342,7 +251,7 @@ int charToInt(uint8_t character) {
 void setAlarm(uint8_t *time_buff){
 	HAL_RTC_GetAlarm(&hrtc, &Alarm, RTC_ALARM_A, RTC_FORMAT_BIN);
 
-	int hour_x1 = charToInt(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x1 = charToInt(time_buff[0]);
 	int hour_x2 = charToInt(time_buff[1]);
 	int minute_x3 = charToInt(time_buff[2]);
 	int minute_x4 = charToInt(time_buff[3]);
@@ -356,7 +265,7 @@ void setTime(uint8_t *time_buff){
 	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
-	int hour_x1 = charToInt(time_buff[0]); //array indexing which automatically dererferences the pointers
+	int hour_x1 = charToInt(time_buff[0]);
 	int hour_x2 = charToInt(time_buff[1]);
 	int minute_x3 = charToInt(time_buff[2]);
 	int minute_x4 = charToInt(time_buff[3]);
@@ -367,14 +276,12 @@ void setTime(uint8_t *time_buff){
 	HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
 }
 void displayTime(volatile bool display_alarm){
-	char ds_time_buffer[16]; //stores the formatted time (10 bytes)
+	char ds_time_buffer[16];
 
-	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN); //&Time only gives the address of the variable. & is not  a reference operator like in c++.
-	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN); //also needs this to unlock shadow registers
+	HAL_RTC_GetTime(&hrtc, &Time, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &Date, RTC_FORMAT_BIN);
 
-    //Format: HH:MM:SS (constructs a "string" into the buffer)
     snprintf(ds_time_buffer, sizeof(ds_time_buffer), "%02d:%02d:%02d", Time.Hours, Time.Minutes, Time.Seconds);
-    //Format: year:month:day (constructs a "string" into the buffer)
 
     HD44780_Home();
     HD44780_SetCursor(0, 0);
@@ -390,6 +297,58 @@ void displayTime(volatile bool display_alarm){
   * @brief System Clock Configuration
   * @retval None
   */
+void timeInput(int time_index){
+	while (time_index < TIME_BUFF_SIZE){
+		if (uart_rx_complete){
+			uart_rx_complete = false;
+
+
+		if (rx_buff[0] >= '0' && rx_buff[0] <= '9'){
+			if (time_index == 0){
+				if (rx_buff[0] >= '0' && rx_buff[0] <= '2'){
+						time_buff[time_index] = rx_buff[0];
+						time_index++;
+				}else{
+					transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 2!\r\n");
+				}
+			}
+
+			else if (time_index == 1){
+				if (time_buff[0] == '0' || time_buff[0] == '1'){
+					time_buff[time_index] = rx_buff[0];
+					time_index++;
+				}else{
+					if (rx_buff[0] >= '0' && rx_buff[0] <= '3'){
+							time_buff[time_index] = rx_buff[0];
+							time_index++;
+					}else{
+						transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 3!\r\n");
+					}
+				}
+			}
+
+			else if(time_index == 2){
+				if (rx_buff[0] >= '0' && rx_buff[0] <= '5'){
+					time_buff[time_index] = rx_buff[0];
+					time_index++;
+				}else{
+					transmitData(&huart2, (const uint8_t*) "Value must be between 0 and 5!\r\n");
+				}
+			}
+
+			else{
+				time_buff[time_index] = rx_buff[0];
+				time_index++;
+			}
+
+			if (time_index == TIME_BUFF_SIZE){
+				break;
+				}
+			}
+		}
+
+		HAL_UART_Receive_IT(&huart2, rx_buff, 1);
+	}}
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
