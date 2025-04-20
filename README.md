@@ -1,8 +1,35 @@
 
-# WORK IN PROGRESS......
+# Alarm Clock using STM32C031C6
+## A fully functional alarm clock project written in C.
+To program this Alarm Clock you need to estabilish a USART connection. When estabilished you can adjust time and alarm. When an alarm activates a passive buzzer will produce a melody as well as LCD screen will have a message pop-up indicating an alarm. This project is the culmination of my self studying of the foundations of embedded systems. The following are key concepts that were used:
+* USART Transmission and Reception in Interrupt Mode.
+* RTC for timekeeping, setting alarms and handling time-triggered events via interrupts.
+* I2C to interface with an external LCD module.
+* PWM signal generation to drive the passive buzzer.
+
+## Demonstration
+
+## How to install and run this project?
+To install and run this project there are some things you **must have** beforehand:
+* NUCLEO-C031C6 developmental board - [you can find it here.](https://www.st.com/en/evaluation-tools/nucleo-c031c6.html#overview)
+* STM32CubeIDE (microcontroller specific IDE) - [you can find it here.](https://www.st.com/en/development-tools/stm32cubeide.html)
+* STM32CubeMX (graphical tool) - [you can find it here.](https://www.st.com/en/development-tools/stm32cubemx.html) 
+* 1602 LCD Display - [you can find it here.](https://www.amazon.com/dp/B0D2LBRXHM/ref=sspa_dk_detail_0?sp_csd=d2lkZ2V0TmFtZT1zcF9kZXRhaWxfdGhlbWF0aWM) 
+* Cables and a passive buzzer - [Starter kit with everything.](https://www.amazon.com/dp/B09YRJQRFF) 
+* USB-A to Micro USB - [you can find it here.](https://www.amazon.com/Amazon-Basics-Charging-Transfer-Gold-Plated/dp/B071S5NTDR?source=ps-sl-shoppingads-lpcontext&ref_=fplfs&smid=ATVPDKIKX0DER&gQT=0)
+* PuTTY (software needed to communicate with microcontroller) - [you can find it here.](https://www.putty.org/)
 
 
-## Challenges and Solutions
+After you got everything proceed.
+
+### 1. Install project zip as shown in the gif
+![hippo](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExanB6dDVrbnJodGRpNTMwbHJ5OXdqdXZneTNiaGlueGN1cGV2YWR4YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Al0xIlR44DJClLfU8u/giphy.gif)
+
+### 2. Extract project zip (I am assuming you know how)
+![hippo](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXhleGdjMnYwenk2djN2ZnBuNnB1Z3hhMm5tZ2dqOHJmM2lmMGdrdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/I4hSsp4Qmsrkwy0MHv/giphy.gif)
+
+### 3. Open the extracted folder and run the .project file
+
 
 ### Challenge
 
