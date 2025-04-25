@@ -2,12 +2,14 @@
 # Alarm Clock using STM32C031C6
 ## A fully functional alarm clock project written in C.
 To program this Alarm Clock you need to estabilish a USART connection. When estabilished you can adjust time and alarm. When an alarm activates a passive buzzer will produce a melody as well as LCD screen will have a message pop-up indicating an alarm. This project is the culmination of my self studying of the foundations of embedded systems. The following are key concepts that were used:
-* USART Transmission and Reception in Interrupt Mode.
+* USART transmission and reception in Interrupt Mode.
 * RTC for timekeeping, setting alarms and handling time-triggered events via interrupts.
 * I2C to interface with an external LCD module.
 * PWM signal generation to drive the passive buzzer.
 
 ## Demonstration
+*Video demonstration 1*
+[![link](https://i9.ytimg.com/vi/I5BQXCWIV9w/mqdefault.jpg?sqp=CKCkrMAG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgZShlMA8=&rs=AOn4CLAq1VlcAc4j7gl51KfSo7dxj6NppQ)](https://www.youtube.com/watch?v=I5BQXCWIV9w)
 
 ## How to install and run this project?
 To install and run this project there are some things you **must have** beforehand:
@@ -28,22 +30,9 @@ After you got everything proceed.
 ### 2. Extract project zip (I am assuming you know how)
 ![hippo](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXhleGdjMnYwenk2djN2ZnBuNnB1Z3hhMm5tZ2dqOHJmM2lmMGdrdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/I4hSsp4Qmsrkwy0MHv/giphy.gif)
 
-### 3. Open the extracted folder and run the .project file
-
-
-### Challenge
-
-
-### Approach
-
-
-### Solution
-
-
-### Outcome
-
-
-### Lessons Learned
+### 3. Open the extracted folder and run the .cproject file
+![hippo](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExajR4dWUxemZqczNiMGlwbGRncDk3ejA2Y3pwdTdwY2V1aHYybGJqcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YYgUAKQAwdBTJfgQoM/giphy.gif)
+### 4. Watch this video for further instructions
 
 
 ## Acknowledgements
