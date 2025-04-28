@@ -8,7 +8,7 @@ To program this Alarm Clock you need to estabilish a USART connection. When esta
 * PWM signal generation to drive the passive buzzer.
 
 ## Demonstration
-[![Demonstration video 1](https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExeDBpbXpmaGxtaWxkbHE0MGZkdWxoNDhsODhqeTdmNGxnNmhyY3c2diZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dvGzu9yryBg65F5R4t/giphy.gif)]((https://www.youtube.com/watch?v=joikh8UFD_I))
+[![Demonstration video 1](https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExeDBpbXpmaGxtaWxkbHE0MGZkdWxoNDhsODhqeTdmNGxnNmhyY3c2diZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dvGzu9yryBg65F5R4t/giphy.gif)](https://www.youtube.com/watch?v=joikh8UFD_I)
 
 
 ## How to install and run this project?
@@ -33,7 +33,7 @@ After you got everything proceed.
 ### 3. Open the extracted folder and run the .cproject file
 ![hippo](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExajR4dWUxemZqczNiMGlwbGRncDk3ejA2Y3pwdTdwY2V1aHYybGJqcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YYgUAKQAwdBTJfgQoM/giphy.gif)
 ### 4. Watch this video for further instructions
-[![step 4 instructions](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcmRndzdhZWR5eDY0b3R2dnZ2eWlqeXVuaGNtdnd6bjVnb2E3czA0ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/0pzElAhaY79jqkUOaB/giphy.gif)]((https://youtu.be/k6KFNa1gwo8))
+[![step 4 instructions](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcmRndzdhZWR5eDY0b3R2dnZ2eWlqeXVuaGNtdnd6bjVnb2E3czA0ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/0pzElAhaY79jqkUOaB/giphy.gif)](https://youtu.be/k6KFNa1gwo8)
 
 ## Acknowledgements
 https://www.micropeta.com/video61 - module for LCD screen functionality.
