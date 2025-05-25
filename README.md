@@ -1,7 +1,7 @@
 
 # Alarm Clock using STM32C031C6
 ## A fully functional alarm clock project written in C.
-To program this Alarm Clock you need to estabilish a USART connection. When estabilished you can adjust time and alarm. When an alarm activates a passive buzzer will produce a melody as well as LCD screen will have a message pop-up indicating an alarm. This project is the culmination of my self learning of the foundations of embedded systems. The following are key concepts that were used:
+To interact with the alarm clock you must first estabilish a USART connection either through PuTTY or another software. When estabilished you can adjust time and alarm through commands. When an alarm activates a passive buzzer will produce a melody as well as LCD screen will have a message pop-up indicating an alarm. When alarm is deactivated LCD screen shows the exact time down to a second. This project is the culmination of my self learning of the foundations of embedded systems. The following are key concepts that were used:
 * USART transmission and reception in interrupt mode.
 * RTC for timekeeping, setting alarms and handling time-triggered events via interrupts.
 * I2C to interface with an external LCD module.
