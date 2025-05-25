@@ -1,11 +1,18 @@
 
 # Alarm Clock using STM32C031C6
-## A fully functional alarm clock project written in C.
-To interact with the alarm clock you must first estabilish a USART connection either through PuTTY or another software. When estabilished you can adjust time and alarm through CLI commands. When an alarm activates a passive buzzer will produce a melody as well as LCD screen will have a message pop-up indicating an alarm. When alarm is deactivated LCD screen shows the exact time down to a second. This project is the culmination of my self learning of the foundations of embedded systems. The following are key concepts that were used:
-* USART transmission and reception in interrupt mode.
-* RTC for timekeeping, setting alarms and handling time-triggered events via interrupts.
-* I2C to interface with an external LCD module.
-* PWM signal generation to drive the passive buzzer.
+**This project is a custom-built STM32-based alarm clock designed to demonstrate foundational embedded systems concepts.**
+
+To use the alarm clock, establish a USART connection using PuTTY or any compatible serial terminal software. Once connected, you can configure the system time and set alarms via a command-line interface.
+When an alarm is triggered:
+- A passive buzzer plays a melody using PWM signal generation.
+- The LCD displays a pop-up message indicating the active alarm.
+- Once the alarm is deactivated, the LCD reverts to showing the current time, including seconds.
+
+This project represents the culmination of my self-taught learning in embedded systems, integrating several key concepts:
+- USART (Interrupt Mode) – for serial communication and command parsing over a terminal interface.
+- RTC (Real-Time Clock) – for accurate timekeeping and interrupt-driven alarm functionality.
+- I2C Protocol – to interface with an external LCD display module.
+- PWM Generation – to drive the passive buzzer with a time melody.
 
 ## Demonstration
 [![Demonstration video 1](https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExeDBpbXpmaGxtaWxkbHE0MGZkdWxoNDhsODhqeTdmNGxnNmhyY3c2diZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dvGzu9yryBg65F5R4t/giphy.gif)](https://www.youtube.com/watch?v=joikh8UFD_I)
