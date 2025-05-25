@@ -34,7 +34,7 @@ After you got everything proceed.
 ### 1. Install project zip as shown in the gif
 ![hippo](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExanB6dDVrbnJodGRpNTMwbHJ5OXdqdXZneTNiaGlueGN1cGV2YWR4YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Al0xIlR44DJClLfU8u/giphy.gif)
 
-### 2. Extract project zip (I am assuming you know how)
+### 2. Extract project zip
 ![hippo](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXhleGdjMnYwenk2djN2ZnBuNnB1Z3hhMm5tZ2dqOHJmM2lmMGdrdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/I4hSsp4Qmsrkwy0MHv/giphy.gif)
 
 ### 3. Open the extracted folder and run the .cproject file
